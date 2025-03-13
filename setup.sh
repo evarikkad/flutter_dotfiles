@@ -6,7 +6,7 @@ ARCH="$(uname -m)"
 
 echo "Detected OS: $OS, Architecture: $ARCH"
 
-# Check if Homebrew is installed (for macOS/Linux ARM)
+# Install Homebrew if not installed (Mac/Linux ARM)
 if ! command -v brew &> /dev/null; then
     echo "Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -14,64 +14,27 @@ else
     echo "Homebrew already installed!"
 fi
 
-# Install Java (Example: OpenJDK 17)
-export JAVA_VERSION=17
-if [[ "$OS" == "Darwin" ]]; then
-    if ! brew list | grep -q "openjdk@$JAVA_VERSION"; then
-        echo "Installing Java $JAVA_VERSION..."
-        brew install openjdk@$JAVA_VERSION
-    else
-        echo "Java $JAVA_VERSION is already installed!"
-    fi
-elif [[ "$OS" == "Linux" ]]; then
-    if ! java -version 2>&1 | grep -q "openjdk $JAVA_VERSION"; then
-        echo "Installing Java $JAVA_VERSION..."
-        sudo apt update && sudo apt install -y openjdk-$JAVA_VERSION-jdk
-    else
-        echo "Java $JAVA_VERSION is already installed!"
-    fi
+# Check Java version (allow 17 or higher)
+JAVA_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | cut -d. -f1)
+if [[ -z "$JAVA_VERSION" || "$JAVA_VERSION" -lt 17 ]]; then
+    echo "Installing Java (17 or higher)..."
+    brew install openjdk@17
+else
+    echo "Java $JAVA_VERSION already installed!"
 fi
 
 # Install Dart & Flutter
-if [[ "$OS" == "Darwin" ]]; then
-    if ! command -v dart &> /dev/null; then
-        echo "Installing Dart..."
-        brew install dart
+for pkg in dart flutter; do
+    if ! command -v $pkg &> /dev/null; then
+        echo "Installing $pkg..."
+        brew install $pkg
     else
-        echo "Dart is already installed!"
+        echo "$pkg is already installed!"
     fi
-
-    if ! command -v flutter &> /dev/null; then
-        echo "Installing Flutter..."
-        brew install flutter
-    else
-        echo "Flutter is already installed!"
-    fi
-elif [[ "$OS" == "Linux" ]]; then
-    if ! command -v dart &> /dev/null; then
-        echo "Installing Dart..."
-        sudo apt update && sudo apt install dart -y
-    else
-        echo "Dart is already installed!"
-    fi
-
-    if ! command -v flutter &> /dev/null; then
-        echo "Installing Flutter..."
-        git clone https://github.com/flutter/flutter.git ~/flutter
-        echo 'export PATH="$HOME/flutter/bin:$PATH"' >> ~/.bashrc
-        source ~/.bashrc
-    else
-        echo "Flutter is already installed!"
-    fi
-fi
+done
 
 # Sync VS Code settings
-if [ -f ~/.config/Code/User/settings.json ]; then
-    echo "VS Code settings already exist!"
-else
-    echo "Syncing VS Code settings..."
-    mkdir -p ~/.config/Code/User
-    ln -sf ~/dotfiles/vscode-settings.json ~/.config/Code/User/settings.json
-fi
+mkdir -p ~/.config/Code/User
+ln -sf ~/flutter_dotfiles/vscode-settings.json ~/.config/Code/User/settings.json
 
 echo "Setup complete! Restart your terminal."

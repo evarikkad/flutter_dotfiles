@@ -1,6 +1,10 @@
-# Run this in PowerShell as Admin
+# Ensure running as Admin
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Output "Please run as Administrator!"
+    exit
+}
 
-# Check if Chocolatey is installed
+# Check and install Chocolatey
 if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
     Write-Output "Installing Chocolatey..."
     Set-ExecutionPolicy Bypass -Scope Process -Force
@@ -10,38 +14,32 @@ if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
     Write-Output "Chocolatey is already installed!"
 }
 
-# Check and Install Java
-$javaVersion = "17"
-if (!(java -version 2>&1 | Select-String "openjdk $javaVersion")) {
-    Write-Output "Installing Java $javaVersion..."
-    choco install openjdk17 -y
+# Check Java version (allow 17 or higher)
+$javaVersion = java -version 2>&1 | Select-String -Pattern '"(\d+)' | % { $_.Matches.Groups[1].Value } | Select-Object -First 1
+if (-not $javaVersion -or [int]$javaVersion -lt 17) {
+    Write-Output "Installing Java (17 or higher)..."
+    choco install openjdk -y
 } else {
-    Write-Output "Java $javaVersion is already installed!"
+    Write-Output "Java $javaVersion already installed!"
 }
 
-# Check and Install Dart
-if (-not (Get-Command dart -ErrorAction SilentlyContinue)) {
-    Write-Output "Installing Dart..."
-    choco install dart-sdk -y
-} else {
-    Write-Output "Dart is already installed!"
+# Install Dart & Flutter
+foreach ($pkg in "dart-sdk", "flutter") {
+    if (-not (Get-Command $pkg -ErrorAction SilentlyContinue)) {
+        Write-Output "Installing $pkg..."
+        choco install $pkg -y
+    } else {
+        Write-Output "$pkg is already installed!"
+    }
 }
 
-# Check and Install Flutter
-if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) {
-    Write-Output "Installing Flutter..."
-    choco install flutter -y
-} else {
-    Write-Output "Flutter is already installed!"
-}
-
-# Check and Sync VS Code settings
+# Sync VS Code settings
 $settingsPath = "$env:APPDATA\Code\User\settings.json"
-if (Test-Path $settingsPath) {
-    Write-Output "VS Code settings already exist!"
-} else {
+if (-not (Test-Path $settingsPath)) {
     Write-Output "Syncing VS Code settings..."
-    Copy-Item -Path "$HOME\dotfiles\vscode-settings.json" -Destination $settingsPath -Force
+    Copy-Item -Path "$HOME\flutter_dotfiles\vscode-settings.json" -Destination $settingsPath -Force
+} else {
+    Write-Output "VS Code settings already exist!"
 }
 
 Write-Output "Setup complete! Restart PowerShell."
